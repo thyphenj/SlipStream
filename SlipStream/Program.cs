@@ -1,126 +1,120 @@
-﻿using PdfSharp.Pdf;
-using PdfSharp.Pdf.Content;
-using PdfSharp.Pdf.Content.Objects;
-using PdfSharp.Pdf.IO;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SlipStream
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
-            List<TextFragment> fragments = new List<TextFragment>();
+            string filename = "c:/users/davieste/downloads/HTML000002.pdf";
 
-            using (var pdfFile = PdfReader.Open("c:/users/t-j/downloads/HTML000002.pdf", PdfDocumentOpenMode.ReadOnly))
+            List<string> content = PDFWrapper.ReadFile(filename);
+
+            // ---- Get the "Address"
+            int lineNo = 0;
+            var address = new List<string>();
+            while (content[lineNo][0] != '-')
+                address.Add(content[lineNo++].Trim());
+
+
+            float TotalPayments, TotalDeductions, NetPay;
+            string Name, TaxPeriodNumber, TaxCode, Message;
+            DateTime PayDate;
+            int PayrollNumber;
+            Dictionary<string, float> Allowances = new Dictionary<string, float>();
+            Dictionary<string, float> Deductions = new Dictionary<string, float>();
+            Dictionary<string, float> YearToDate = new Dictionary<string, float>();
+
+            while (lineNo < content.Count)
             {
-                foreach (var page in pdfFile.Pages)
+                string[] line = content[lineNo].Split(new char[] { '|' });
+                //                Console.WriteLine($"{line.Length,2} {content[lineNo]}");
+                switch (line.Length)
                 {
-                    TextFragment frag = new TextFragment();
-
-                    var zz = ContentReader.ReadContent(page);
-
-                    foreach (var element in zz)
-                    {
-
-                        if (element is COperator)
+                    case 6:
+                        switch (line[1].Trim())
                         {
-                            COperator op = (COperator)element;
-                            if (op.Name == "Td")
-                            {
-                                 frag = new TextFragment();
-                                frag.AddPos(op);
-                            }
-                            else if (op.Name == "Tj")
-                            {
-                                frag.AddText(op);
-                                fragments.Add(frag);
-                            }
+                            case "Name":
+                                Name = line[2].Trim();
+                                break;
+                            case "Payroll Number":
+                                PayrollNumber = int.Parse(line[2].Trim());
+                                break;
+                            default:
+                                break;
                         }
-                    }
+                        switch (line[3].Trim())
+                        {
+                            case "Pay Date":
+                                var dat = line[4].Trim().Split(new char[] { '.' });
+                                PayDate = new DateTime(int.Parse(dat[2]), int.Parse(dat[1]), int.Parse(dat[0]));
+                                break;
+                            case "Tax Period Number":
+                                TaxPeriodNumber = line[4].Trim();
+                                break;
+                            case "Tax Code":
+                                TaxCode = line[4].Trim();
+                                break;
+                            default:
+                                break;
+                        }
+                        //Console.WriteLine($"{line.Length,2} {content[lineNo]} ****************DONE");
+                        break;
+                    case 5:
+                        if (line[1].Contains("Payments") && line[2].Contains("Deductions") && line[3].Contains("Pay"))
+                        {
+                            TotalPayments = float.Parse(line[1].Remove(0, 12).Trim().Replace(",", ""));
+                            TotalDeductions = float.Parse(line[2].Remove(0, 12).Trim().Replace(",", ""));
+                            NetPay = float.Parse(line[3].Remove(0, 12).Trim().Replace(",", ""));
+                        }
+                        //Console.WriteLine($"{line.Length,2} {content[lineNo]} ****************DONE");
+                        break;
+                    case 3:
+                        if (line[1].Contains("Message"))
+                        {
+                            Message = line[1].Trim().Substring(8);
+                            while (content[++lineNo][0] == '|')
+                                Message += $"\n{content[lineNo].Substring(1, content[lineNo].Length - 2).Trim()}";
+                        }
+                        //Console.WriteLine($"{line.Length,2} {content[lineNo]} ****************DONE");
+                        break;
+                    case 10:
+                        float xx;
+                        if (float.TryParse(line[4].Trim().Replace(",", ""), out xx))
+                        {
+                            Allowances.Add(line[1].Trim(), xx);
+                        }
+                        if (float.TryParse(line[6].Trim().Replace(",", ""), out xx))
+                        {
+                            Deductions.Add(line[5].Trim(), xx);
+                        }
+                        if (float.TryParse(line[8].Trim().Replace(",", ""), out xx))
+                        {
+                            YearToDate.Add(line[7].Trim(), xx);
+                        }
+                        break;
+                    case 1:
+                    case 7: // This is the "Holidays" section - absolute shite from beginning to end!
+                    case 4:
+                    case 8:
+                        break;
+                    default:
+                        Console.WriteLine($"{line.Length,2} {content[lineNo]}");
+                        break;
+
                 }
-                var sorted =
-           from frag in fragments
-           orderby frag.Y descending, frag.X ascending
-           select frag;
-
-                double prevY = 0.0;
-                foreach (var frag in sorted)
-                {
-                    if ( prevY != frag.Y)
-                        Console.WriteLine();
-                    Console.Write(frag.ToString());
-                    prevY = frag.Y;
-                }
-                Console.WriteLine();
-                Console.ReadLine();
+                lineNo++;
             }
+
+
+
+
+
+
+
+            // that old pauser!
+            Console.ReadLine();
         }
-        private static void Write(CObject obj)
-        {
-            if (obj is CNumber)
-                Write((CNumber)obj);
-
-            else if (obj is COperator)
-                Write((COperator)obj);
-
-            else if (obj is CString)
-                Write((CString)obj);
-        }
-
-        private static void Write(COperator obj)
-        {
-            Console.Write("op:{0}(", obj.Name);
-            foreach (var op in obj.Operands)
-            {
-                Write(op);
-                Console.Write(", ");
-            }
-            Console.WriteLine(")");
-        }
-
-        private static void Write(CNumber obj)
-        {
-            Console.Write("num:{0}", obj.ToString());
-        }
-
-        private static void Write(CString obj)
-        {
-            Console.Write($"str:{obj.Value}");
-        }
-
-        //private static void Write(CComment obj)
-        //{
-        //    Console.Write("/* {0} */", obj.Text);
-        //}
-
-        //private static void Write(CInteger obj)
-        //{
-        //    Console.Write("int:{0}", obj.Value);
-        //}
-
-        //private static void Write(CName obj)
-        //{
-        //    Console.Write("name:{0}", obj.Name);
-        //}
-        private static void Write(CReal obj)
-        {
-            Console.Write("real:{0}", obj.Value);
-        }
-
-        private static void Write(CSequence obj)
-        {
-            foreach (var element in obj)
-            {
-                Write(element);
-                Console.WriteLine();
-            }
-        }
-
     }
 }
