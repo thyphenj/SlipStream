@@ -8,12 +8,13 @@ namespace SlipStream
 {
     class SlipData
     {
-        // ---- This is the PK ????
-        public DateTime PayDate;
+        // ---- Is this the PK ????
+        public string PayDate;
 
         // ---- Who am I?
         public string Name;
         public int PayrollNumber;
+        public List<string> Address = new List<string>();
 
         // ---- What's my "situation"?
         public string TaxCode;
@@ -30,19 +31,21 @@ namespace SlipStream
         public float TotalDeductions;
         public float NetPay;
 
+        public List<string> Issues = new List<string>();
+
         public SlipData(List<string> content)
         {
             // ---- Get the "Address"
             int lineNo = 0;
-            var address = new List<string>();
             while (content[lineNo][0] != '-')
-                address.Add(content[lineNo++].Trim());
+                Address.Add(content[lineNo++].Trim());
 
             // ---- For each subsequent line
             while (lineNo < content.Count)
             {
                 // ---- Depending on the number of fields we can "guess" what the line contains
                 string[] line = content[lineNo].Split(new char[] { '|' });
+                //Console.WriteLine($"{line.Length,2} {content[lineNo]}");
                 switch (line.Length)
                 {
                     case 6:
@@ -61,7 +64,7 @@ namespace SlipStream
                         {
                             case "Pay Date":
                                 var dat = line[4].Trim().Split(new char[] { '.' });
-                                PayDate = new DateTime(int.Parse(dat[2]), int.Parse(dat[1]), int.Parse(dat[0]));
+                                PayDate = $"{int.Parse(dat[2]),4:D4}-{int.Parse(dat[1]),2:D2}-{int.Parse(dat[0]),2:D2})";
                                 break;
                             case "Tax Period Number":
                                 TaxPeriodNumber = line[4].Trim();
@@ -72,7 +75,6 @@ namespace SlipStream
                             default:
                                 break;
                         }
-                        //Console.WriteLine($"{line.Length,2} {content[lineNo]} ****************DONE");
                         break;
                     case 5:
                         if (line[1].Contains("Payments") && line[2].Contains("Deductions") && line[3].Contains("Pay"))
@@ -81,7 +83,6 @@ namespace SlipStream
                             TotalDeductions = float.Parse(line[2].Remove(0, 12).Trim().Replace(",", ""));
                             NetPay = float.Parse(line[3].Remove(0, 12).Trim().Replace(",", ""));
                         }
-                        //Console.WriteLine($"{line.Length,2} {content[lineNo]} ****************DONE");
                         break;
                     case 3:
                         if (line[1].Contains("Message"))
@@ -90,7 +91,6 @@ namespace SlipStream
                             while (content[++lineNo][0] == '|')
                                 Message += $"\n{content[lineNo].Substring(1, content[lineNo].Length - 2).Trim()}";
                         }
-                        //Console.WriteLine($"{line.Length,2} {content[lineNo]} ****************DONE");
                         break;
                     case 10:
                         float xx;
@@ -113,14 +113,52 @@ namespace SlipStream
                     //case 8:
                     //    break;
                     default:
-//                        Console.WriteLine($"{line.Length,2} {content[lineNo]}");
                         break;
 
                 }
                 lineNo++;
             }
 
+            // ---- Does it all add up?
+
+            // ---- Add Allowances - does it match TotalPayments?
+            float sum = 0;
+            foreach (var a in Allowances)
+            {
+                sum += a.Value;
+            }
+            if (NotEqual(sum, TotalPayments))
+                Issues.Add($"TotalPayments = {TotalPayments} but sum of Allowances = {sum}");
+
+            // ---- Do deductions add up?
+            sum = 0;
+            foreach (var a in Deductions)
+            {
+                sum += a.Value;
+            }
+            if (NotEqual(sum, TotalDeductions))
+                Issues.Add($"TotalDeductions = {TotalDeductions} but sum of Deductions = {sum}");
+
+            // ---- Can they subtract x from y to give z?
+            if (NotEqual(TotalPayments-TotalDeductions, NetPay) )
+                Issues.Add($"TotalPayments ({TotalDeductions}) minus TotalDeductions ({TotalDeductions}) not equal to NetPay ({NetPay})");
         }
+
+        public bool IssuesPresent ()
+        {
+            return (Issues.Count > 0);
+        }
+
+        private static bool Equal(float x, float y)
+        {
+            return (Math.Abs(x - y) < 0.005);
+        }
+
+        private static bool NotEqual(float x, float y)
+        {
+            return (Math.Abs(x - y) > 0.009);
+        }
+
         public override string ToString()
         {
             return $"{TaxPeriodNumber} {TotalPayments}";

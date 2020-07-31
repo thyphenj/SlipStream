@@ -39,34 +39,41 @@ namespace SlipStream
         {
             List<PDFWrapper> fragments = new List<PDFWrapper>();
 
-            //get text fragments out of file into <fragments>
-            using (var pdfFile = PdfReader.Open(filename, PdfDocumentOpenMode.ReadOnly))
+            try
             {
-                foreach (var page in pdfFile.Pages)
+                //get text fragments out of file into <fragments>
+                using (var pdfFile = PdfReader.Open(filename, PdfDocumentOpenMode.ReadOnly))
                 {
-                    PDFWrapper fragment = new PDFWrapper();
-
-                    var zz = ContentReader.ReadContent(page);
-
-                    foreach (var element in zz)
+                    foreach (var page in pdfFile.Pages)
                     {
-                        if (element is COperator op)
+                        PDFWrapper fragment = new PDFWrapper();
+
+                        var zz = ContentReader.ReadContent(page);
+
+                        foreach (var element in zz)
                         {
-                            if (op.Name == "Td")
+                            if (element is COperator op)
                             {
-                                fragment = new PDFWrapper();
-                                fragment.AddPos(op);
-                            }
-                            else if (op.Name == "Tj")
-                            {
-                                fragment.AddText(op);
-                                fragments.Add(fragment);
+                                if (op.Name == "Td")
+                                {
+                                    fragment = new PDFWrapper();
+                                    fragment.AddPos(op);
+                                }
+                                else if (op.Name == "Tj")
+                                {
+                                    fragment.AddText(op);
+                                    fragments.Add(fragment);
+                                }
                             }
                         }
                     }
                 }
-            }
 
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
 
             //write the fragments into the retval
             var retval = new List<string>();
