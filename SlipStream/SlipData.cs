@@ -9,32 +9,41 @@ namespace SlipStream
     class SlipData
     {
         // ---- Is this the PK ????
-        public string PayDate;
+        public string PayDate { get; set; }
 
         // ---- Who am I?
-        public string Name;
-        public int PayrollNumber;
-        public List<string> Address = new List<string>();
+        public string Name { get; set; }
+        public int PayrollNumber { get; set; }
+        public List<string> Address { get; set; }
 
         // ---- What's my "situation"?
-        public string TaxCode;
-        public string TaxPeriodNumber;
-        public string Message;
+        public string TaxCode { get; set; }
+        public string TaxPeriodNumber { get; set; }
+        public string Message { get; set; }
 
         // ---- The "detail" lines
-        public Dictionary<string, float> Allowances = new Dictionary<string, float>();
-        public Dictionary<string, float> Deductions = new Dictionary<string, float>();
-        public Dictionary<string, float> YearToDate = new Dictionary<string, float>();
+        public Dictionary<string, float> Allowances { get; set; } 
+        public Dictionary<string, float> Deductions { get; set; } 
+        public Dictionary<string, float> YearToDate { get; set; } 
 
         // ---- The "bottom line"
-        public float TotalPayments;
-        public float TotalDeductions;
-        public float NetPay;
+        public float TotalPayments { get; set; }
+        public float TotalDeductions { get; set; }
+        public float NetPay { get; set; }
 
-        public List<string> Issues = new List<string>();
+        // ---- Any problems with validation?
+        public List<string> Issues { get; set; } 
 
         public SlipData(List<string> content)
         {
+            Address = new List<string>();
+
+            Allowances = new Dictionary<string, float>();
+            Deductions  = new Dictionary<string, float>();
+            YearToDate = new Dictionary<string, float>();
+
+            Issues = new List<string>();
+
             // ---- Get the "Address"
             int lineNo = 0;
             while (content[lineNo][0] != '-')
@@ -64,7 +73,7 @@ namespace SlipStream
                         {
                             case "Pay Date":
                                 var dat = line[4].Trim().Split(new char[] { '.' });
-                                PayDate = $"{int.Parse(dat[2]),4:D4}-{int.Parse(dat[1]),2:D2}-{int.Parse(dat[0]),2:D2})";
+                                PayDate = $"{int.Parse(dat[2]),4:D4}-{int.Parse(dat[1]),2:D2}-{int.Parse(dat[0]),2:D2}";
                                 break;
                             case "Tax Period Number":
                                 TaxPeriodNumber = line[4].Trim();
@@ -140,11 +149,11 @@ namespace SlipStream
                 Issues.Add($"TotalDeductions = {TotalDeductions} but sum of Deductions = {sum}");
 
             // ---- Can they subtract x from y to give z?
-            if (NotEqual(TotalPayments-TotalDeductions, NetPay) )
+            if (NotEqual(TotalPayments - TotalDeductions, NetPay))
                 Issues.Add($"TotalPayments ({TotalDeductions}) minus TotalDeductions ({TotalDeductions}) not equal to NetPay ({NetPay})");
         }
 
-        public bool IssuesPresent ()
+        public bool IssuesPresent()
         {
             return (Issues.Count > 0);
         }
@@ -162,6 +171,16 @@ namespace SlipStream
         public override string ToString()
         {
             return $"{TaxPeriodNumber} {TotalPayments}";
+        }
+
+        public int TaxYear ()
+        {
+            return int.Parse(TaxPeriodNumber.Substring(3));
+        }
+
+        public int Year()
+        {
+            return int.Parse(PayDate.Substring(0,4));
         }
     }
 }

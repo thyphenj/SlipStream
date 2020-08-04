@@ -12,6 +12,7 @@ namespace SlipStream
         {
             string folder = @"c:\temp\slips";
             List<string> results = new List<string>();
+            List<SlipData> allSlips = new List<SlipData>();
 
             foreach (var filename in Directory.GetFiles(folder, "*.pdf"))
             {
@@ -23,10 +24,11 @@ namespace SlipStream
                     {
                         SlipData slipData = new SlipData(content);
 
-                        if (slipData.IssuesPresent() )
+                        if (slipData.IssuesPresent())
                         {
                             Console.WriteLine($"{slipData.PayDate} : {slipData.Issues[0]}");
                         }
+                        allSlips.Add(slipData);
                         results.Add(JsonConvert.SerializeObject(slipData));
                     }
                 }
@@ -34,6 +36,12 @@ namespace SlipStream
                 {
                     // ---- ignore throw;
                 }
+            }
+
+            foreach (var xx in allSlips)
+            {
+                if (xx.Year() == 2018)
+                    Console.WriteLine($"{xx.PayDate} {xx.TaxPeriodNumber} {xx.NetPay}");
             }
 
 
